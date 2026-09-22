@@ -92,31 +92,32 @@ class AudioController(private val context: Context, private val socketManager: S
 
     fun startPlayingIncomingAudio() {
         if (isPlayingIncomingAudio) return
-        try {
-            audioTrack = AudioTrack.Builder()
-                .setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                        .build()
-                )
-                .setAudioFormat(
-                    AudioFormat.Builder()
-                        .setEncoding(audioFormat)
-                        .setSampleRate(sampleRate)
-                        .setChannelMask(channelConfigOut)
-                        .build()
-                )
-                .setBufferSizeInBytes(minPlayBufferSize)
-                .setTransferMode(AudioTrack.MODE_STREAM)
-                .build()
 
-            audioTrack?.play()
-            isPlayingIncomingAudio = true
-            Log.d("AudioController", "Reproducción de voz remota (PC) iniciada en el celular")
-        } catch (e: Exception) {
-            Log.e("AudioController", "Error al iniciar AudioTrack: ${e.message}")
-        }
+        val sampleRate = 16000 // Debe coincidir con la frecuencia que manda tu PC (ej: 16000 o 22050)
+        val channelConfig = AudioFormat.CHANNEL_OUT_MONO
+        val audioFormat = AudioFormat.ENCODING_PCM_16BIT
+        val bufferSize = AudioTrack.getMinBufferSize(sampleRate, channelConfig, audioFormat)
+
+        audioTrack = AudioTrack.Builder()
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build()
+            )
+            .setAudioFormat(
+                AudioFormat.Builder()
+                    .setSampleRate(sampleRate)
+                    .setEncoding(audioFormat)
+                    .setChannelMask(channelConfig)
+                    .build()
+            )
+            .setBufferSizeInBytes(bufferSize)
+            .setTransferMode(AudioTrack.MODE_STREAM)
+            .build()
+
+        audioTrack?.play()
+        isPlayingIncomingAudio = true
     }
 
     fun playAudioChunk(base64Chunk: String) {
@@ -125,6 +126,10 @@ class AudioController(private val context: Context, private val socketManager: S
         }
         try {
             val audioBytes = Base64.decode(base64Chunk, Base64.NO_WRAP)
+            // Asegúrate de que audioTrack esté sonando
+            if (audioTrack?.state == AudioTrack.STATE_INITIALIZED && audioTrack?.playState != AudioTrack.PLAYSTATE_PLAYING) {
+                audioTrack?.play()
+            }
             audioTrack?.write(audioBytes, 0, audioBytes.size)
         } catch (e: Exception) {
             Log.e("AudioController", "Error escribiendo chunk de audio entrante: ${e.message}")
@@ -132,14 +137,11 @@ class AudioController(private val context: Context, private val socketManager: S
     }
 
     fun stopPlayingIncomingAudio() {
-        if (!isPlayingIncomingAudio) return
         isPlayingIncomingAudio = false
-
         try {
             audioTrack?.stop()
             audioTrack?.release()
             audioTrack = null
-            Log.d("AudioController", "Reproducción de voz remota detenida")
         } catch (e: Exception) {
             Log.e("AudioController", "Error al detener AudioTrack: ${e.message}")
         }

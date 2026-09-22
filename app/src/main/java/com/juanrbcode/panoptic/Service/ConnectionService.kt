@@ -95,7 +95,7 @@ class ConnectionService : Service(), LifecycleOwner {
 
     private fun initSocketConnection(roomCode: String, password: String) {
 
-        // ESCUCHA DEL AUDIO ENTRANTE DESDE LA PC (Voz bidireccional)
+        // ESCUCHA DEL AUDIO ENTRANTE DESDE LA PC (Voz bidireccional) -> ¡ESTO FALTABA LLAMARLO!
         socketManager.onPlayAudioChunk { base64Chunk ->
             audioController.playAudioChunk(base64Chunk)
         }
